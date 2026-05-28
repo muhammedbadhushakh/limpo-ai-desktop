@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PortableAI</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a26;
+    --border: #2a2a3d;
+    --accent: #7c6af7;
+    --accent2: #f76a8c;
+    --text: #e8e8f0;
+    --muted: #6b6b85;
+    --green: #4ade80;
+    --yellow: #fbbf24;
+    --red: #f87171;
+    --mono: 'Space Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    height: 100vh;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 220px;
+    min-width: 220px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 24px 0 16px;
+  }
+  .logo {
+    padding: 0 20px 28px;
+    font-family: var(--mono);
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: grid; place-items: center;
+    font-size: 16px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 20px;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 500;
+    border-left: 3px solid transparent;
+    transition: all .2s;
+    user-select: none;
+  }
+  .nav-item:hover { color: var(--text); background: var(--surface2); }
+  .nav-item.active {
+    color: var(--accent);
+    border-left-color: var(--accent);
+    background: rgba(124,106,247,.08);
+  }
+  .nav-icon { font-size: 18px; width: 22px; text-align: center; }
+  .sidebar-footer {
+    margin-top: auto;
+    padding: 16px 20px 0;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    display: inline-block;
+    margin-right: 6px;
+  }
+  .status-dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+  /* ── Main ── */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ── Pages ── */
+  .page { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+  .page.active { display: flex; }
+
+  /* ── Chat Page ── */
+  .chat-header {
+    padding: 18px 28px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: var(--surface);
+  }
+  .model-picker {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .model-picker:focus { border-color: var(--accent); }
+  .provider-badge {
+    font-size: 11px;
+    font-family: var(--mono);
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(124,106,247,.15);
+    color: var(--accent);
+    font-weight: 700;
+    letter-spacing: .5px;
+  }
+  .new-chat-btn {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: var(--sans);
+    transition: all .2s;
+  }
+  .new-chat-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px 0;
+    scroll-behavior: smooth;
+  }
+  .messages::-webkit-scrollbar { width: 4px; }
+  .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .msg-row {
+    display: flex;
+    gap: 14px;
+    padding: 10px 28px;
+    max-width: 900px;
+    margin: 0 auto;
+    width: 100%;
+    animation: fadeUp .3s ease;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .msg-row.user { flex-direction: row-reverse; }
+  .avatar {
+    width: 34px; height: 34px;
+    border-radius: 9px;
+    display: grid; place-items: center;
+    font-size: 16px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .avatar.user-av  { background: linear-gradient(135deg, #f76a8c, #f7a56a); }
+  .avatar.ai-av    { background: linear-gradient(135deg, var(--accent), #a78bfa); }
+  .bubble {
+    max-width: 72%;
+    padding: 13px 17px;
+    border-radius: 14px;
+    font-size: 14px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .bubble.user-b {
+    background: linear-gradient(135deg, rgba(247,106,140,.18), rgba(247,165,106,.12));
+    border: 1px solid rgba(247,106,140,.25);
+    border-bottom-right-radius: 4px;
+  }
+  .bubble.ai-b {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+  }
+  .bubble.streaming::after {
+    content: '▋';
+    animation: blink .7s step-end infinite;
+    color: var(--accent);
+    margin-left: 2px;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    gap: 12px;
+    font-size: 14px;
+  }
+  .empty-icon { font-size: 48px; opacity: .4; }
+  .empty-state h3 { color: var(--text); font-size: 20px; font-weight: 600; }
+
+  .chat-input-wrap {
+    padding: 18px 28px 24px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+  }
+  .input-box {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    transition: border-color .2s;
+  }
+  .input-box:focus-within { border-color: var(--accent); }
+  #chatInput {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    resize: none;
+    max-height: 160px;
+    line-height: 1.6;
+  }
+  #chatInput::placeholder { color: var(--muted); }
+  .send-btn {
+    width: 38px; height: 38px;
+    background: linear-gradient(135deg, var(--accent), #a78bfa);
+    border: none;
+    border-radius: 9px;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    transition: opacity .2s, transform .1s;
+  }
+  .send-btn:hover { opacity: .88; transform: scale(1.04); }
+  .send-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+  /* ── Models Page ── */
+  .page-header {
+    padding: 28px 32px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .page-header h1 { font-size: 20px; font-weight: 600; }
+  .page-header p  { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .add-btn {
+    margin-left: auto;
+    background: linear-gradient(135deg, var(--accent), #a78bfa);
+    border: none;
+    color: white;
+    padding: 9px 18px;
+    border-radius: 9px;
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity .2s;
+  }
+  .add-btn:hover { opacity: .88; }
+
+  .models-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .models-body::-webkit-scrollbar { width: 4px; }
+  .models-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .model-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    transition: border-color .2s;
+  }
+  .model-card:hover { border-color: var(--accent); }
+  .model-card-icon {
+    width: 44px; height: 44px;
+    border-radius: 10px;
+    display: grid; place-items: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+  .model-info { flex: 1; min-width: 0; }
+  .model-info h3 { font-size: 15px; font-weight: 600; }
+  .model-info .model-id { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .model-key-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .model-key-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 12px;
+    border-radius: 7px;
+    font-family: var(--mono);
+    font-size: 12px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .model-key-input:focus { border-color: var(--accent); }
+  .model-key-input::placeholder { color: var(--muted); }
+  .provider-tag {
+    font-size: 10px;
+    font-family: var(--mono);
+    font-weight: 700;
+    letter-spacing: .5px;
+    padding: 3px 7px;
+    border-radius: 5px;
+  }
+  .tag-openai   { background: rgba(16,163,127,.15); color: #10a37f; }
+  .tag-gemini   { background: rgba(66,133,244,.15); color: #4285f4; }
+  .tag-anthropic{ background: rgba(247,155,80,.15); color: #f79b50; }
+  .tag-ollama   { background: rgba(124,106,247,.15); color: var(--accent); }
+  .tag-custom   { background: rgba(248,113,113,.15); color: var(--red); }
+  .toggle-btn {
+    width: 42px; height: 23px;
+    background: var(--border);
+    border-radius: 20px;
+    border: none;
+    cursor: pointer;
+    position: relative;
+    transition: background .2s;
+    flex-shrink: 0;
+  }
+  .toggle-btn.on { background: var(--accent); }
+  .toggle-btn::after {
+    content: '';
+    position: absolute;
+    width: 17px; height: 17px;
+    background: white;
+    border-radius: 50%;
+    top: 3px; left: 3px;
+    transition: transform .2s;
+  }
+  .toggle-btn.on::after { transform: translateX(19px); }
+  .del-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    transition: all .2s;
+  }
+  .del-btn:hover { border-color: var(--red); color: var(--red); background: rgba(248,113,113,.08); }
+
+  /* ── Save bar ── */
+  .save-bar {
+    padding: 14px 32px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .save-btn {
+    background: var(--accent);
+    border: none;
+    color: white;
+    padding: 9px 22px;
+    border-radius: 9px;
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity .2s;
+  }
+  .save-btn:hover { opacity: .88; }
+  .save-msg { font-size: 13px; color: var(--green); display: none; }
+
+  /* ── Modal ── */
+  .modal-bg {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.6);
+    z-index: 100;
+    place-items: center;
+  }
+  .modal-bg.open { display: grid; }
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    width: 420px;
+    max-width: 95vw;
+    animation: fadeUp .2s ease;
+  }
+  .modal h2 { font-size: 17px; font-weight: 700; margin-bottom: 20px; }
+  .field { margin-bottom: 14px; }
+  .field label { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 6px; }
+  .field input, .field select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 13px;
+    border-radius: 8px;
+    font-family: var(--sans);
+    font-size: 14px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent); }
+  .modal-btns { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+  .cancel-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 9px 18px;
+    border-radius: 8px;
+    font-family: var(--sans);
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  /* ── Ollama helper ── */
+  .ollama-section {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 16px;
+  }
+  .ollama-section h4 { font-size: 13px; font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .ollama-tag { font-family: var(--mono); font-size: 10px; background: rgba(124,106,247,.15); color: var(--accent); padding: 2px 7px; border-radius: 4px; }
+  .ollama-models-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .ollama-chip {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .ollama-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .ollama-chip.added { border-color: var(--green); color: var(--green); cursor: default; }
+
+  /* scrollbar */
+  .messages { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="logo"><div class="logo-icon">⚡</div>PortableAI</div>
+  <div class="nav-item active" onclick="showPage('chat')">
+    <span class="nav-icon">💬</span> Chat
+  </div>
+  <div class="nav-item" onclick="showPage('models')">
+    <span class="nav-icon">🧩</span> Models
+  </div>
+  <div class="sidebar-footer">
+    <div style="margin-bottom:6px"><span class="status-dot" id="ollamaDot"></span><span id="ollamaStatus">Checking…</span></div>
+    USB Portable · v1.0
+  </div>
+</aside>
+
+<!-- Main -->
+<div class="main">
+
+  <!-- ── Chat Page ── -->
+  <div class="page active" id="page-chat">
+    <div class="chat-header">
+      <span style="font-size:18px">💬</span>
+      <select class="model-picker" id="modelSelect" onchange="onModelChange()"></select>
+      <span class="provider-badge" id="providerBadge">—</span>
+      <button class="new-chat-btn" onclick="newChat()">+ New Chat</button>
+    </div>
+
+    <div class="messages" id="messages">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon">⚡</div>
+        <h3>PortableAI</h3>
+        <p>Select a model above and start chatting.</p>
+      </div>
+    </div>
+
+    <div class="chat-input-wrap">
+      <div class="input-box">
+        <textarea id="chatInput" rows="1" placeholder="Type a message… (Shift+Enter for newline)"
+          oninput="autoResize(this)" onkeydown="handleKey(event)"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Models Page ── -->
+  <div class="page" id="page-models">
+    <div class="page-header">
+      <div>
+        <h1>🧩 Model Manager</h1>
+        <p>Add your API keys and manage available models.</p>
+      </div>
+      <button class="add-btn" onclick="openAddModal()">+ Add Model</button>
+    </div>
+
+    <div class="models-body" id="modelsList">
+      <!-- cards injected by JS -->
+    </div>
+
+    <div class="save-bar">
+      <button class="save-btn" onclick="saveModels()">💾 Save Changes</button>
+      <span class="save-msg" id="saveMsg">✓ Saved!</span>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- ── Add Model Modal ── -->
+<div class="modal-bg" id="addModal">
+  <div class="modal">
+    <h2>➕ Add New Model</h2>
+
+    <!-- Ollama auto-detect -->
+    <div class="ollama-section" id="ollamaSection">
+      <h4>🦙 Local Ollama Models <span class="ollama-tag">OFFLINE</span></h4>
+      <div class="ollama-models-list" id="ollamaChips">
+        <span style="font-size:12px;color:var(--muted)">Scanning…</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Display Name</label>
+      <input id="newName" placeholder="e.g. GPT-4o Mini"/>
+    </div>
+    <div class="field">
+      <label>Model ID</label>
+      <input id="newId" placeholder="e.g. gpt-4o-mini"/>
+    </div>
+    <div class="field">
+      <label>Provider</label>
+      <select id="newProvider">
+        <option value="openai">OpenAI (ChatGPT)</option>
+        <option value="gemini">Google Gemini</option>
+        <option value="anthropic">Anthropic (Claude)</option>
+        <option value="ollama">Ollama (Local)</option>
+        <option value="custom">Custom / Other</option>
+      </select>
+    </div>
+    <div class="field" id="apiKeyField">
+      <label>API Key</label>
+      <input id="newApiKey" type="password" placeholder="Paste your API key here"/>
+    </div>
+    <div class="modal-btns">
+      <button class="cancel-btn" onclick="closeModal()">Cancel</button>
+      <button class="add-btn" onclick="addModel()">Add Model</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let config = { models: [] };
+let messages = [];
+let streaming = false;
+
+// ── Providers config ─────────────────────────────────────────────────────────
+const PROVIDER_INFO = {
+  openai:    { label: 'OpenAI',    icon: '🤖', color: '#10a37f', tag: 'tag-openai' },
+  gemini:    { label: 'Gemini',    icon: '✨', color: '#4285f4', tag: 'tag-gemini' },
+  anthropic: { label: 'Anthropic', icon: '🧠', color: '#f79b50', tag: 'tag-anthropic' },
+  ollama:    { label: 'Local',     icon: '🦙', color: '#7c6af7', tag: 'tag-ollama' },
+  custom:    { label: 'Custom',    icon: '⚙️', color: '#f87171', tag: 'tag-custom' },
+};
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+async function init() {
+  const res = await fetch('/api/models');
+  config = await res.json();
+  renderModelSelect();
+  renderModelCards();
+  checkOllama();
+}
+
+function checkOllama() {
+  fetch('/api/ollama/list').then(r => r.json()).then(data => {
+    const dot = document.getElementById('ollamaDot');
+    const txt = document.getElementById('ollamaStatus');
+    if (data.models && data.models.length > 0) {
+      dot.className = 'status-dot online';
+      txt.textContent = `Ollama (${data.models.length})`;
+    } else if (data.error) {
+      dot.className = 'status-dot';
+      txt.textContent = 'Ollama offline';
+    }
+  });
+}
+
+// ── Pages ────────────────────────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelectorAll('.nav-item')[name === 'chat' ? 0 : 1].classList.add('active');
+  if (name === 'models') renderModelCards();
+}
+
+// ── Model select ─────────────────────────────────────────────────────────────
+function renderModelSelect() {
+  const sel = document.getElementById('modelSelect');
+  const prev = sel.value;
+  sel.innerHTML = '';
+  const enabled = config.models.filter(m => m.enabled !== false);
+  enabled.forEach(m => {
+    const o = document.createElement('option');
+    o.value = m.id;
+    o.textContent = m.name;
+    sel.appendChild(o);
+  });
+  if (prev && enabled.find(m => m.id === prev)) sel.value = prev;
+  onModelChange();
+}
+
+function onModelChange() {
+  const sel = document.getElementById('modelSelect');
+  const m = config.models.find(x => x.id === sel.value);
+  const badge = document.getElementById('providerBadge');
+  if (m) {
+    const info = PROVIDER_INFO[m.provider] || PROVIDER_INFO.custom;
+    badge.textContent = info.label;
+    badge.style.background = info.color + '22';
+    badge.style.color = info.color;
+  }
+}
+
+// ── Chat ─────────────────────────────────────────────────────────────────────
+function newChat() {
+  messages = [];
+  document.getElementById('messages').innerHTML = `
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">⚡</div>
+      <h3>PortableAI</h3>
+      <p>Select a model above and start chatting.</p>
+    </div>`;
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+async function sendMessage() {
+  if (streaming) return;
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  const modelId = document.getElementById('modelSelect').value;
+  if (!modelId) return alert('Please select a model first.');
+
+  // Remove empty state
+  const empty = document.getElementById('emptyState');
+  if (empty) empty.remove();
+
+  input.value = '';
+  input.style.height = 'auto';
+
+  messages.push({ role: 'user', content: text });
+  appendMsg('user', text);
+
+  const aiBubble = appendMsg('ai', '');
+  aiBubble.classList.add('streaming');
+
+  document.getElementById('sendBtn').disabled = true;
+  streaming = true;
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model_id: modelId, messages })
+    });
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let fullText = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const raw = line.slice(6);
+        if (raw === '[DONE]') break;
+        try {
+          const obj = JSON.parse(raw);
+          if (obj.token) {
+            fullText += obj.token;
+            aiBubble.textContent = fullText;
+            scrollBottom();
+          }
+          if (obj.error) {
+            aiBubble.textContent = '❌ Error: ' + obj.error;
+          }
+        } catch {}
+      }
+    }
+    messages.push({ role: 'assistant', content: fullText });
+  } catch (err) {
+    aiBubble.textContent = '❌ Network error: ' + err.message;
+  } finally {
+    aiBubble.classList.remove('streaming');
+    document.getElementById('sendBtn').disabled = false;
+    streaming = false;
+  }
+}
+
+function appendMsg(role, text) {
+  const wrap = document.getElementById('messages');
+  const row = document.createElement('div');
+  row.className = 'msg-row ' + (role === 'user' ? 'user' : '');
+
+  const av = document.createElement('div');
+  av.className = 'avatar ' + (role === 'user' ? 'user-av' : 'ai-av');
+  av.textContent = role === 'user' ? '👤' : '⚡';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble ' + (role === 'user' ? 'user-b' : 'ai-b');
+  bubble.textContent = text;
+
+  row.appendChild(av);
+  row.appendChild(bubble);
+  wrap.appendChild(row);
+  scrollBottom();
+  return bubble;
+}
+
+function scrollBottom() {
+  const m = document.getElementById('messages');
+  m.scrollTop = m.scrollHeight;
+}
+
+// ── Model Cards ───────────────────────────────────────────────────────────────
+function renderModelCards() {
+  const list = document.getElementById('modelsList');
+  list.innerHTML = '';
+  config.models.forEach((m, i) => {
+    const info = PROVIDER_INFO[m.provider] || PROVIDER_INFO.custom;
+    const card = document.createElement('div');
+    card.className = 'model-card';
+    const needsKey = m.provider !== 'ollama';
+    card.innerHTML = `
+      <div class="model-card-icon" style="background:${info.color}22">${info.icon}</div>
+      <div class="model-info">
+        <h3>${m.name}</h3>
+        <div class="model-id">${m.id}</div>
+        ${needsKey ? `
+        <div class="model-key-wrap">
+          <input class="model-key-input" type="password"
+            placeholder="API Key…"
+            value="${m.api_key || ''}"
+            oninput="config.models[${i}].api_key = this.value"/>
+          <span class="provider-tag ${info.tag}">${info.label}</span>
+        </div>` : `<div class="model-key-wrap"><span class="provider-tag ${info.tag}">🦙 Local</span></div>`}
+      </div>
+      <button class="toggle-btn ${m.enabled !== false ? 'on' : ''}"
+        onclick="toggleModel(${i}, this)" title="Enable/Disable"></button>
+      <button class="del-btn" onclick="deleteModel(${i})" title="Delete">🗑</button>
+    `;
+    list.appendChild(card);
+  });
+}
+
+function toggleModel(i, btn) {
+  config.models[i].enabled = !config.models[i].enabled;
+  btn.classList.toggle('on', config.models[i].enabled);
+  renderModelSelect();
+}
+
+function deleteModel(i) {
+  if (!confirm(`Delete "${config.models[i].name}"?`)) return;
+  config.models.splice(i, 1);
+  renderModelCards();
+  renderModelSelect();
+}
+
+async function saveModels() {
+  await fetch('/api/models', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config)
+  });
+  renderModelSelect();
+  const msg = document.getElementById('saveMsg');
+  msg.style.display = 'inline';
+  setTimeout(() => msg.style.display = 'none', 2500);
+}
+
+// ── Add Modal ─────────────────────────────────────────────────────────────────
+async function openAddModal() {
+  document.getElementById('addModal').classList.add('open');
+  document.getElementById('newName').value = '';
+  document.getElementById('newId').value = '';
+  document.getElementById('newApiKey').value = '';
+  document.getElementById('newProvider').value = 'openai';
+  toggleApiKeyField();
+
+  // Load ollama
+  const chips = document.getElementById('ollamaChips');
+  chips.innerHTML = '<span style="font-size:12px;color:var(--muted)">Scanning…</span>';
+  const data = await fetch('/api/ollama/list').then(r => r.json());
+  chips.innerHTML = '';
+  if (data.models && data.models.length > 0) {
+    data.models.forEach(name => {
+      const chip = document.createElement('span');
+      chip.className = 'ollama-chip';
+      chip.textContent = name;
+      const already = config.models.find(m => m.id === name);
+      if (already) { chip.className += ' added'; chip.title = 'Already added'; }
+      else chip.onclick = () => quickAddOllama(name, chip);
+      chips.appendChild(chip);
+    });
+  } else {
+    chips.innerHTML = '<span style="font-size:12px;color:var(--muted)">' + (data.error || 'No local models found.') + '</span>';
+  }
+}
+
+document.getElementById('newProvider').addEventListener('change', toggleApiKeyField);
+function toggleApiKeyField() {
+  const provider = document.getElementById('newProvider').value;
+  document.getElementById('apiKeyField').style.display = provider === 'ollama' ? 'none' : '';
+}
+
+function quickAddOllama(name, chip) {
+  config.models.push({ id: name, name: name, provider: 'ollama', api_key: '', enabled: true });
+  chip.className = 'ollama-chip added';
+  chip.onclick = null;
+}
+
+function addModel() {
+  const name = document.getElementById('newName').value.trim();
+  const id = document.getElementById('newId').value.trim();
+  const provider = document.getElementById('newProvider').value;
+  const key = document.getElementById('newApiKey').value.trim();
+  if (!name || !id) return alert('Name and Model ID are required.');
+  config.models.push({ id, name, provider, api_key: key, enabled: true });
+  closeModal();
+  renderModelCards();
+  renderModelSelect();
+}
+
+function closeModal() {
+  document.getElementById('addModal').classList.remove('open');
+}
+document.getElementById('addModal').addEventListener('click', e => {
+  if (e.target === e.currentTarget) closeModal();
+});
+
+init();
+</script>
+</body>
+</html>
