@@ -68,3 +68,4 @@ pip install flask requests pyinstaller
 python build_exe.py
 ```
 "# limpo-ai-desktop" 
+"# limpo-ai-desktop" 
